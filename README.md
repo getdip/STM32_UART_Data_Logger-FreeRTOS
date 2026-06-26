@@ -116,3 +116,12 @@ Three dedicated FreeRTOS queues handle data safety:
 ### 1. Build the Project
 ```bash
 python3 build.py
+```
+### 2. Flash and run
+```bash
+python3 flash_run.py --target final.elf
+```
+### 3. Flash and enter debug mode(GDB through openOCD)
+```bash
+python3 flash_debug.py --target final.elf
+```
