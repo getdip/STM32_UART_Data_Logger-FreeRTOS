@@ -296,7 +296,7 @@ int main(void)
   status = xTaskCreate(BME_init_task_handler, "BME-Init_task",300,NULL,4, &BME_init_task_handle);
   configASSERT(status == pdPASS);
 
-  //HAL_GPIO_TogglePin(GPIOD, LD4_Pin);
+  
   status = xTaskCreate(UART_task_handler, "UART-Handling_task", 200,NULL,3, &UART_task_handle);
   configASSERT(status == pdPASS);
 
@@ -1295,10 +1295,11 @@ static void UART_task_handler(void* parameters){
 			//if(xTaskNotifyWait(0,0,&cmd_mode_flag,0) == pdTRUE){
 			if(xTaskNotifyWaitIndexed(1,0,ULONG_MAX,&cmd_mode_flag,0)== pdTRUE){
 				if(cmd_mode_flag & CMD_MODE_ENTER){
+					HAL_GPIO_WritePin(GPIOD, LD3_Pin,GPIO_PIN_SET); // Orange LED
 					usart_tx_en=0;
 				}
 				else if (cmd_mode_flag & CMD_MODE_IDLE){
-					HAL_GPIO_WritePin(GPIOD, LD3_Pin,GPIO_PIN_SET); // Orange LED
+					HAL_GPIO_WritePin(GPIOD, LD3_Pin,GPIO_PIN_RESET); // Orange LED
 					usart_tx_en=1;
 				}
 			}
@@ -1322,7 +1323,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
-	HAL_GPIO_WritePin(GPIOD, LD4_Pin,GPIO_PIN_SET); // GREEN LED
+	
 	BaseType_t ret = pdFALSE;
 
 	if(huart->Instance == USART2){
