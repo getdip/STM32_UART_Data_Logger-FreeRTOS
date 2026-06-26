@@ -19,17 +19,20 @@ openocd_ret=subprocess.Popen(["openocd","-f","board/stm32f4discovery.cfg"])
 
 time.sleep(5)
 
-gdb_script = """
+gdb_flash = """
 target remote localhost:3333
 monitor reset halt
 load
+monitor reset run
+monitor shutdown 
+quit
 """
 
-with open("flash.gdb","w") as f:
-    f.write(gdb_script)
+with open("flash_run.gdb","w") as f:
+    f.write(gdb_flash)
 
 subprocess.run(["gdb-multiarch",
     str(arg_path),
     "-x",
-    "flash.gdb"])
+    "flash_run.gdb"])
 
