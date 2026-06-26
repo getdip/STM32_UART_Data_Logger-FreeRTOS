@@ -106,7 +106,8 @@ Three dedicated FreeRTOS queues handle data safety:
 | :--- | :--- | :--- |
 | 🔴 **Red** | ON | DS1307 initialized successfully |
 | 🔵 **Blue** | ON | BME280 initialized successfully |
-| 🟠 **Orange** | ON | Command mode exited (System in Idle state) |
+| 🟠 **Orange** | ON | Command mode entered (System in cmd state) |
+| 🟠 **Orange** | OFF | Command mode exited (System in Idle state) |
 
 ---
 
