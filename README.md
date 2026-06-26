@@ -1,197 +1,117 @@
-STM32 UART Environmental Data Logger using FreeRTOS
-Overview
+Markdown
+# STM32 UART Environmental Data Logger (FreeRTOS)
 
-This project implements a real-time environmental data logger on the STM32F407G-DISC1 development board using FreeRTOS. The firmware periodically acquires temperature, pressure and humidity data from a BME280 sensor together with the current time from a DS1307 RTC, combines both datasets, and transmits them over UART to a host PC.
+A real-time environmental data logger built on the **STM32F407G-DISC1** using **FreeRTOS**. The firmware periodically acquires environmental data from a BME280 sensor, timestamps it using a DS1307 RTC, and streams the combined data over USART2 to a host PC.
 
-The project was developed using a Makefile-based build system and a command-line development workflow without relying on STM32CubeIDE for building, flashing or debugging.
+---
 
-Features
-FreeRTOS based firmware
-Periodic environmental data acquisition
-Real-time clock integration
-UART based data logging
-Interactive UART command interface for setting RTC time
-Event-driven task synchronization using FreeRTOS notifications
-Queue based inter-task communication
-Command-line build, flashing and debugging
-Python automation scripts for firmware development
-Hardware
-Development Board
-STM32F407G-DISC1
-System Clock: 16 MHz
-Sensors
-BME280 (I2C2)
-DS1307 RTC (I2C1)
-Communication
-USART2
-FT232 USB-UART converter
-Peripheral Usage
-Peripheral	Purpose
-USART2	UART communication with host PC
-I2C1	DS1307 RTC
-I2C2	BME280 environmental sensor
-TIM6	HAL time base (FreeRTOS uses SysTick)
-LED Status Indicators
-LED	Function
-Red	DS1307 initialized successfully
-Blue	BME280 initialized successfully
-Orange	Command mode exited successfully
-FreeRTOS Configuration
-configTICK_RATE_HZ = 1000
-Preemptive Scheduler
-Tick Period = 1 ms
-Tasks
+## Features
 
-The firmware consists of six FreeRTOS tasks.
+* **FreeRTOS Architecture:** Event-driven firmware using FreeRTOS tasks.
+* **Periodic Logging:** Environmental data logging at a strict 1-second interval.
+* **Sensor Handling:** BME280 operating efficiently in *Forced Mode*.
+* **Time Tracking:** Integrated DS1307 Real-Time Clock (RTC).
+* **Command Interface:** UART command interface to dynamically set/update the RTC time.
+* **Task Synchronization:** Uses FreeRTOS task notifications (including indexed notifications) and Queue-based inter-task communication.
+* **Modern Build System:** Makefile-based build system wrapped with Python automation for building, flashing, and debugging.
+* **CLI Debugging:** OpenOCD + GDB command-line debugging integration.
 
-Initialization Tasks
+---
 
-These tasks execute only once during system startup.
+## Hardware Configuration
 
-RTC initialization
-BME280 initialization
-Runtime Tasks
-UART Task
+* **Development Board:** STM32F407G-DISC1
+* **MCU Clock:** 16 MHz
+* **Sensors & Peripherals:**
+  * **BME280:** Connected via `I2C2`
+  * **DS1307 RTC:** Connected via `I2C1`
+  * **UART:** `USART2` routed through an FT232 USB-UART Adapter to the host PC
 
-Responsible for
+---
 
-Receiving user commands
-Formatting outgoing log messages
-UART transmission
-RTC Task
+### System Clock
+* `SystemCoreClock = 16000000;` (16 MHz)
 
-Responsible for
+### FreeRTOS Settings
+* `configTICK_RATE_HZ = 1000`
+* **Scheduler:** Preemptive
+* **Tick Period:** 1 ms
 
-Reading current time from DS1307
-Writing new RTC time after receiving a valid command
-BME280 Task
+### HAL Time Base
+* `TIM6` is dedicated as the HAL time base, as `SysTick` is exclusively reserved by FreeRTOS.
 
-Responsible for
+---
 
-Triggering measurements (Forced Mode)
-Reading temperature
-Reading pressure
-Reading humidity
-Command Task
+## FreeRTOS Tasks
 
-Responsible for
+| Task | Purpose |
+| :--- | :--- |
+| **RTC Init** | Initializes the DS1307 RTC peripheral |
+| **BME Init** | Initializes the BME280 sensor |
+| **UART Task** | Handles all UART Tx/Rx operations |
+| **RTC Task** | Manages periodic RTC read and write operations |
+| **BME Task** | Manages sensor acquisition and scheduling |
+| **CMD Task** | Processes user commands incoming via UART |
 
-Processing user entered commands
-Validating RTC time format
-Passing processed data to the RTC task
-Inter-task Communication
+---
 
-The firmware uses
+## Inter-Task Communication
 
-Indexed task notifications
-ISR-safe task notifications
-Three FreeRTOS queues
+### Task Notifications
+Used extensively across the application for:
+* Peripheral initialization handshakes
+* Sensor synchronization
+* UART control flow
+* ISR-to-task synchronization
 
-Queues are used for
+### Queues
+Three dedicated FreeRTOS queues handle data safety:
+1. **RTC Queue:** Stores timestamp data.
+2. **BME280 Queue:** Stores environmental sensor data.
+3. **User Command Queue:** Stores raw incoming CLI commands.
 
-RTC timestamp
-BME280 sensor data
-User command
+---
 
-The UART task waits until both RTC and BME280 data become available before formatting and transmitting the combined log.
+## Data Flow
 
-UART Output
+1. **RTC Task** reads the current timestamp every second.
+2. **BME280 Task** triggers a Forced Mode conversion and reads the raw data.
+3. Both tasks push their respective datasets into their dedicated **Queues**.
+4. **UART Task** blocks until both datasets become available in the queues.
+5. Once data is fetched, the UART Task formats the string and transmits it over **USART2**.
+6. The **FT232 Adapter** forwards this data directly to the host PC's terminal.
 
-Example
+---
 
-11:35:12 -- 29.3C 1002hPa 62%
-11:35:13 -- 29.4C 1002hPa 62%
-11:35:14 -- 29.4C 1001hPa 61%
+## UART Command Interface
 
-Configure the serial terminal with
+### How to Use
+* **Enter Command Mode:** Transmit the `>` character.
+* **Termination:** Every command must be terminated with a `#` character.
 
-Baud Rate: (your baud rate)
-Local Echo: ON
+### Command Formats
 
-The project has been tested using Tera Term.
+* **24-Hour Format:** `HH:MM:SS#`
+  * *Example:* `18:45:30#`
+* **12-Hour Format:** `HH:MM:SS AM#` or `HH:MM:SS PM#`
+  * *Example:* `08:30:15 PM#`
 
-Setting RTC Time
+> **Note:** Any commands failing to match these strict formats will be safely ignored by the command parser.
 
-Enter command mode by pressing
+---
 
->
+## LED Indicators
 
-Terminate every command using
+| LED | Status | Description |
+| :--- | :--- | :--- |
+| 🔴 **Red** | ON | DS1307 initialized successfully |
+| 🔵 **Blue** | ON | BME280 initialized successfully |
+| 🟠 **Orange** | ON | Command mode exited (System in Idle state) |
 
-#
-24 Hour Format
-HH:MM:SS#
+---
 
-Example
+## Build, Flash & Run
 
-18:45:30#
-12 Hour Format
-HH:MM:SS AM#
-
-or
-
-HH:MM:SS PM#
-
-Example
-
-08:15:20 PM#
-
-Commands not matching the required format are ignored.
-
-Build and Flash Automation
-
-Python helper scripts are provided.
-
-Build
+### 1. Build the Project
+```bash
 python3 build.py
-
-Builds the firmware executable
-
-final.elf
-Flash and Debug
-python3 flash_debug.py
-
-This script
-
-Starts OpenOCD
-Connects GDB
-Downloads the firmware
-Leaves the user inside an interactive GDB session for debugging
-
-Prerequisites
-
-OpenOCD
-gdb-multiarch
-Flash and Run
-python3 flash_run.py
-
-Downloads the firmware, starts execution on the target and exits.
-
-Build System
-
-The project uses
-
-GNU Make
-arm-none-eabi-gcc
-OpenOCD
-gdb-multiarch
-Python
-
-No IDE is required for building or flashing.
-
-Future Improvements
-Automatic UART log capture to CSV
-Data visualization using Python (Matplotlib)
-CI-based automated firmware builds
-Unit testing of host-side Python utilities
-RTOS-aware debugging support
-Project Structure
-.
-├── Core/
-├── Drivers/
-├── ThirdParty/
-├── build.py
-├── flash_debug.py
-├── flash_run.py
-├── Makefile
-└── final.elf
